@@ -1,0 +1,202 @@
+name: Commit Summary
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'notes/'
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm install openai dayjs
+
+      - name: Create AI commit analysis script
+        run: |
+          cat > analyze-commit.js << 'EOF'
+          import fs from 'fs';
+          import path from 'path';
+          import { execSync } from 'child_process';
+          import dayjs from 'dayjs';
+          import OpenAI from 'openai';
+
+          const openai = new OpenAI({
+            baseURL: 'https://api.moonshot.cn/v1',
+            apiKey: process.env.MOONSHOT_API_KEY
+          });
+
+          async function analyzeCommit() {
+            try {
+              // 获取最新提交的信息
+              const commitHash = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+              const commitMsg = execSync('git log -1 --pretty=%s', { encoding: 'utf-8' }).trim();
+              const commitAuthor = execSync('git log -1 --pretty=%an', { encoding: 'utf-8' }).trim();
+              const commitDate = dayjs().format('YYYY-MM-DD HH:mm:ss');
+              
+              // 获取提交的文件变更
+              const changedFiles = execSync('git diff-tree --no-commit-id --name-only -r HEAD', { encoding: 'utf-8' })
+                .trim().split('\n').filter(f => f);
+              
+              // 获取提交的差异（限制长度）
+              const diff = execSync('git show HEAD --format="" --no-color', { encoding: 'utf-8' }).substring(0, 8000);
+              
+              // 确保 notes 目录存在
+              const notesDir = 'notes';
+              if (!fs.existsSync(notesDir)) {
+                fs.mkdirSync(notesDir, { recursive: true });
+              }
+
+              // 获取现有笔记文件，确定下一个序号
+              const existingFiles = fs.readdirSync(notesDir)
+                .filter(f => f.match(/^\d+\./))
+                .map(f => parseInt(f.split('.')[0]))
+                .filter(n => !isNaN(n));
+              
+              const nextNumber = existingFiles.length > 0 ? Math.max(...existingFiles) + 1 : 1;
+              
+              // 构建 AI 分析提示
+              const prompt = `
+          我正在开发一个在线图形绘制平台（类似原型设计工具），并结合 AI 图像处理功能。请分析这次提交，生成开发笔记：
+
+          ## 📝 提交信息
+          **提交**: ${commitHash.substring(0, 8)}
+          **消息**: ${commitMsg}
+          **作者**: ${commitAuthor}
+          **时间**: ${commitDate}
+          **变更文件**: ${changedFiles.join(', ')}
+
+          ## 💻 代码变更
+          \`\`\`diff
+          ${diff}
+          \`\`\`
+
+          请帮我分析这次提交，重点关注：
+
+          ## 🎯 本次实现内容
+          - 具体实现了什么功能或特性
+          - 使用了哪些技术栈和工具（如 Next.js、shadcn/ui、Canvas API 等）
+          - 涉及了哪些关键概念
+
+          ## 💡 技术选型与设计思路
+          - 为什么选择这种实现方式
+          - 技术选型的考虑因素
+          - 架构设计的亮点
+
+          ## 🔧 实现细节
+          - 核心代码实现逻辑
+          - 遇到的技术难点及解决方案
+          - 性能优化或最佳实践
+
+          ## 📚 开发收获
+          - 学到了什么新知识
+          - 对项目整体架构的理解
+          - 后续可以改进的方向
+
+          请基于提交信息给出一个简短的标题（不超过15个字，不要包含序号），以及详细的开发笔记。
+          返回格式：
+          标题: [你的标题]
+          
+          [详细内容]
+          
+          请用中文回答，内容要实用且有深度。
+          `;
+
+              // 调用 AI 生成分析
+              const response = await openai.chat.completions.create({
+                model: 'kimi-k2-0905-preview',
+                messages: [{ role: 'user', content: prompt }],
+                temperature: 0.7,
+                max_tokens: 4000
+              });
+
+              const analysisText = response.choices[0].message.content.trim();
+              
+              // 提取标题和内容
+              let title = commitMsg;
+              let content = analysisText;
+              
+              const titleMatch = analysisText.match(/标题[:：]\s*(.+?)[\n\r]/);
+              if (titleMatch) {
+                title = titleMatch[1].trim();
+                content = analysisText.replace(/标题[:：]\s*.+?[\n\r]+/, '').trim();
+              }
+              
+              // 清理文件名中的非法字符
+              title = title.replace(/[<>:"/\\|?*]/g, '-').substring(0, 50);
+              
+              // 创建格式化的笔记
+              const noteContent = [
+                `# ${title}`,
+                '',
+                `> **提交**: \`${commitHash.substring(0, 8)}\` | **时间**: ${commitDate} | **作者**: ${commitAuthor}`,
+                '',
+                content,
+                '',
+                '---',
+                '',
+                `**变更文件**: ${changedFiles.join(', ')}`
+              ].join('\n')
+
+              // 保存为独立文件
+              const fileName = `${nextNumber}.${title}.md`;
+              const filePath = path.join(notesDir, fileName);
+              fs.writeFileSync(filePath, noteContent, 'utf-8');
+              
+              console.log(`✅ 笔记已生成: ${fileName}`);
+              
+            } catch (error) {
+              console.error('❌ Error analyzing commit:', error.message);
+              process.exit(1);
+            }
+          }
+
+          analyzeCommit();
+          EOF
+
+      - name: Run commit analysis
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+        run: |
+          node analyze-commit.js
+
+      - name: Commit and Push Summary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # 检查是否有变更需要提交
+          if [[ -d "notes" ]]; then
+            git add notes/
+            
+            if ! git diff --staged --quiet; then
+              COMMIT_HASH=$(git rev-parse HEAD | cut -c1-8)
+              COMMIT_MSG=$(git log -1 --pretty=%s)
+              git commit -m "📝 开发笔记: ${COMMIT_MSG} (${COMMIT_HASH}) [skip ci]"
+              
+              # 使用 GITHUB_TOKEN 推送
+              git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
+              git push
+              echo "✅ 开发笔记已更新并推送"
+            else
+              echo "ℹ️  没有需要提交的变更"
+            fi
+          else
+            echo "❌ notes 目录未找到"
+          fi
