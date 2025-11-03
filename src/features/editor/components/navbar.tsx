@@ -15,11 +15,17 @@ import { CiFileOn } from "react-icons/ci";
 import {Separator} from "@/components/ui/separator";
 import {Hint} from "@/components/hint";
 import {BsCloudCheck} from "react-icons/bs";
+import {ActiveTool} from "@/features/editor/types";
+import {cn} from "@/lib/utils";
 
 
+export interface NavbarProps {
+    activeTool: ActiveTool;
+    onChangeActiveTool: (tool: ActiveTool) => void;
+}
 
 
-export const Navbar = () => {
+export const Navbar = ( {activeTool, onChangeActiveTool}: NavbarProps) => {
 
     return (
         <nav className={'w-full flex  items-center  p-4 h-[68px] gap-x-8 border-b lg:pl-[34px]'}>
@@ -60,11 +66,8 @@ export const Navbar = () => {
                         <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => {
-                                // TODO : save file
-                                console.log("save file")
-                            }}
-                            className=""  // TODO : add 动态类
+                            onClick={() => { onChangeActiveTool("select")}}
+                            className= {cn(activeTool === "select" &&  "bg-gray-100")}
                         >
                             <MousePointerClick className="size-4"/>
                         </Button>
