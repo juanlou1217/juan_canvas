@@ -1,6 +1,6 @@
 "use client"
 
-import {ActiveTool} from "@/features/editor/types";
+import {ActiveTool, Editor} from "@/features/editor/types";
 import {cn} from "@/lib/utils";
 import {ToolSidebarHeader} from "@/features/editor/components/toolSidebar/tool-sidebar-header";
 import {ToolSidebarClose} from "@/features/editor/components/toolSidebar/tool-sidebar-close";
@@ -12,10 +12,11 @@ import {FaDiamond} from "react-icons/fa6";
 
 export interface ShapeSideberProps {
     activeTool: ActiveTool;
+    editor: Editor | undefined ;
     onChangeActiveTool: (tool: ActiveTool) => void;
 }
 
-export const ShapeSideber = ({activeTool, onChangeActiveTool}: ShapeSideberProps) => {
+export const ShapeSideber = ({activeTool, editor , onChangeActiveTool}: ShapeSideberProps) => {
     const onClose = () => {
         onChangeActiveTool("select");
     }
@@ -34,38 +35,37 @@ export const ShapeSideber = ({activeTool, onChangeActiveTool}: ShapeSideberProps
                 <div className={"p-4 gap-4 grid grid-cols-3 "}>
                     <SidebarTool
                         icon={FaCircle}
-                        iconClassName=""
-                        onClick={() => {}}
+                        onClick={() => editor?.addCircle()}
                     />
 
                     <SidebarTool
                         icon={FaSquare}
                         iconClassName=""
-                        onClick={() => {}}
+                        onClick={() => editor?.addSoftRectangle()}
                     />
 
                     <SidebarTool
                         icon={FaSquareFull}
                         iconClassName=""
-                        onClick={() => {}}
+                        onClick={() => editor?.addRectangle()}
                     />
 
                     <SidebarTool
                         icon={IoTriangle}
                         iconClassName=""
-                        onClick={() => {}}
+                        onClick={() => editor?.addTriangle()}
                     />
 
                     <SidebarTool
                         icon={IoTriangle}
                         iconClassName="rotate-180"
-                        onClick={() => {}}
+                        onClick={() => editor?.addInverseTriangle()}
                     />
 
                     <SidebarTool
                         icon={FaDiamond}
                         iconClassName=""
-                        onClick={() => {}}
+                        onClick={() => editor?.addDiamond()}
                     />
 
 

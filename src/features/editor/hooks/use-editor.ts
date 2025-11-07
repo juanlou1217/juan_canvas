@@ -1,6 +1,101 @@
-import {useCallback, useState} from "react";
-import { fabric } from 'fabric'
+import {useCallback, useMemo, useState} from "react";
+import {fabric} from 'fabric'
 import {useAuteResize} from "@/features/editor/hooks/useAuteResize";
+import {
+    BuildEditorProps,
+    CIRCLE_OPTIONS,
+    DIAMIOND_OPTIONS,
+    Editor,
+    RECTANGLE_OPTIONS,
+    TRIANFLE_OPTIONS
+} from "@/features/editor/types";
+
+
+const buildEditor = ({
+                         canvas,
+                     }:BuildEditorProps) : Editor=> {
+
+    const getWorkspace = ()=>{
+        return canvas.
+        getObjects().
+        find(obj => obj.name === 'clip')
+    }
+
+    const center =(obj:fabric.Object)=>{
+        const  workspace = getWorkspace()
+        const center = workspace?.getCenterPoint()
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        canvas._centerObject(obj,center)
+
+        // canvas.centerObject(object)
+    }
+
+    const addToCanvas = ((obj:fabric.Object)=>{
+        center(obj)
+        canvas.add(obj)
+        canvas.setActiveObject(obj)
+    })
+
+    return {
+        addCircle:()=>{
+            const obj = new fabric.Circle({
+                ...CIRCLE_OPTIONS
+            })
+            addToCanvas(obj)
+        },
+
+        addSoftRectangle:()=>{
+            const obj = new fabric.Rect({
+                ...RECTANGLE_OPTIONS,
+                rx:50,
+                ry:50,
+            })
+            addToCanvas(obj)
+        },
+
+        addRectangle:()=>{
+            const obj = new fabric.Rect({
+                ...RECTANGLE_OPTIONS,
+            })
+            addToCanvas(obj)
+        },
+
+        addTriangle:()=>{
+            const obj = new fabric.Triangle({
+                ...TRIANFLE_OPTIONS,
+            })
+            addToCanvas(obj)
+        },
+
+        addInverseTriangle:()=>{
+            const obj = new fabric.Triangle({
+                ...TRIANFLE_OPTIONS,
+                angle:180
+            })
+            addToCanvas(obj)
+        },
+        addDiamond:()=>{
+            const HEIGHT = DIAMIOND_OPTIONS.height;
+            const WIDTH = DIAMIOND_OPTIONS.width;
+            const obj = new fabric.Polygon(
+                [
+                    {x: WIDTH / 2, y: 0},
+                    {x: WIDTH, y: HEIGHT / 2},
+                    {x: WIDTH / 2, y: HEIGHT},
+                    {x: 0, y: HEIGHT/2},
+                ], {
+                    ...DIAMIOND_OPTIONS,
+                })
+            addToCanvas(obj)
+        },
+
+
+
+
+    }
+}
+
 
 export const useEditor = () => {
 
@@ -9,14 +104,21 @@ export const useEditor = () => {
 
     useAuteResize({canvas,container})
 
+    const editor = useMemo(()=>{
+        if (canvas) return buildEditor({
+            canvas,
+        })
+        return undefined
+    },[canvas])
+
     const init = useCallback(
         ({
              initiaCanvas,
              initiaContainer
-        }:{
+         }:{
             initiaCanvas:fabric.Canvas,
             initiaContainer:HTMLDivElement
-    }) =>{
+        }) =>{
 
             // 设置 fabric 对象的全局默认样式属性
             fabric.Object.prototype.set({
@@ -51,20 +153,8 @@ export const useEditor = () => {
             setCanvas(initiaCanvas)
             setContainer(initiaContainer)
 
+        },[])
 
-
-
-
-            const test = new fabric.Rect({
-                width: 100,
-                height: 100,
-                fill: 'black',
-            })
-            initiaCanvas.add(test)
-            initiaCanvas.centerObject(test)
-
-    },[])
-
-  return {init}
+    return {init  , editor}
 
 }

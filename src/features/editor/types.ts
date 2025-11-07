@@ -1,3 +1,8 @@
+import {fabric} from "fabric";
+
+
+
+
 /**
  * 活动工具类型定义
  * 定义了编辑器中可用的各种工具类型
@@ -19,3 +24,66 @@ export type ActiveTool =
     | "ai"              // AI工具
     | "remove-bg"       // 背景移除工具
     | "templates";      // 模板工具
+
+export const FILL_COLOR = "rgba(0,0,0,1)"
+export const STROKE_COLOR = "rgba(0,0,0,1)"
+export const STROKE_width = 2
+
+
+export type BuildEditorProps = {
+    canvas: fabric.Canvas;
+
+}
+
+export interface Editor {
+    addCircle:()=>void;
+    addSoftRectangle:()=>void;
+    addRectangle:()=>void;
+    addTriangle:()=>void;
+    addInverseTriangle:()=>void;
+    addDiamond:()=>void;
+}
+
+
+export const CIRCLE_OPTIONS = {
+    radius:150,
+    left:100,
+    top:100,
+    fill:FILL_COLOR,
+    stroke : STROKE_COLOR,
+    strokeWidth:STROKE_width,
+}
+
+export const RECTANGLE_OPTIONS = {
+    width: 400,
+    height: 400,
+    angle: 0,
+    left: 100,
+    top: 100,
+    fill: FILL_COLOR,
+    stroke: STROKE_COLOR,
+    strokeWidth: STROKE_width,
+}
+
+export const TRIANFLE_OPTIONS = {
+    width: 400,
+    height: 400,
+    angle: 0,
+    left: 100,
+    top: 100,
+    fill: FILL_COLOR,
+    stroke: STROKE_COLOR,
+    strokeWidth: STROKE_width,
+}
+
+export const DIAMIOND_OPTIONS = {
+    width: 400,
+    height: 400,
+    angle: 0,
+    left: 100,
+    top: 100,
+    fill: FILL_COLOR,
+    stroke: STROKE_COLOR,
+    strokeWidth: STROKE_width,
+}
+
