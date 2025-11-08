@@ -8,11 +8,17 @@ import { Navbar } from "@/features/editor/components/navbar";
 import {Sidebar} from "@/features/editor/components//sidebar";
 import {Toolbar} from "@/features/editor/components/toolbar";
 import {Footer} from "@/features/editor/components/footer";
-import {ActiveTool} from "@/features/editor/types";
+import {ActiveTool, selectionDependentTools} from "@/features/editor/types";
 import {ShapeSideber} from "@/features/editor/components/toolSidebar/shape-sideber";
+import {FillColorSidebar} from "@/features/editor/components/topToolbar/fill-color-sidebar";
+import {StrokelColorSidebar} from "@/features/editor/components/topToolbar/strokel-color-sidebar";
+import {StrokelWidthSidebar} from "@/features/editor/components/topToolbar/strokel-width-sidebar";
+import {OpacitySidebar} from "@/features/editor/components/topToolbar/opacity-sidebar";
 
 
 export const Editor = () => {
+
+    // 工具栏状态管理
     const [activeTool, setActiveTool] = useState<ActiveTool>("select");
     const  onChangeActiveTool  = useCallback((tool: ActiveTool)=>{
         if (tool !== activeTool){
@@ -29,7 +35,16 @@ export const Editor = () => {
         setActiveTool(tool);
     }, [activeTool])
 
-    const {init , editor } = useEditor();
+    const onClearSelection = useCallback(()=>{
+    if (selectionDependentTools.includes(activeTool)){
+        setActiveTool("select")
+    }
+    }, [activeTool])
+
+
+    const {init , editor } = useEditor({
+        clearSelectionCallback: onClearSelection
+    });
     const canvasRef = useRef(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -69,14 +84,43 @@ export const Editor = () => {
                 onChangeActiveTool={onChangeActiveTool}
               />
 
+
               <ShapeSideber
                   editor={editor}
                   activeTool={activeTool}
                   onChangeActiveTool={onChangeActiveTool}
               />
 
+
+              <FillColorSidebar
+                  editor={editor}
+                  activeTool={ activeTool }
+                  onChangeActiveTool={onChangeActiveTool}
+              />
+              <StrokelColorSidebar
+                  editor={editor}
+                  activeTool={ activeTool }
+                  onChangeActiveTool={onChangeActiveTool}
+              />
+              <StrokelWidthSidebar
+                  editor={editor}
+                  activeTool={ activeTool }
+                  onChangeActiveTool={onChangeActiveTool}
+              />
+              <OpacitySidebar
+                  editor={editor}
+                  activeTool={ activeTool }
+                  onChangeActiveTool={onChangeActiveTool}
+              />
+
+
               <main className="bg-muted flex-1 overflow-auto relative flex flex-col">
-                  <Toolbar/>
+                  <Toolbar
+                      editor={editor}
+                      activeTool={activeTool}
+                      onChangeActiveTool={onChangeActiveTool}
+                      key = {JSON.stringify(editor?.canvas.getActiveObjects())}
+                  />
 
                   <div className='flex-1 h-[calc(100%-124px)] bg-muted' ref={containerRef}>
                       <canvas ref={canvasRef}/>

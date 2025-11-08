@@ -5,16 +5,26 @@ import {
     BuildEditorProps,
     CIRCLE_OPTIONS,
     DIAMIOND_OPTIONS,
-    Editor,
-    RECTANGLE_OPTIONS,
+    Editor, EditorHookProps, FILL_COLOR,
+    RECTANGLE_OPTIONS, STROKE_COLOR, STROKE_DASH_ARRAP, STROKE_width,
     TRIANFLE_OPTIONS
 } from "@/features/editor/types";
+import {useCanvasEvents} from "@/features/editor/hooks/use-canvas-events";
+import {isTextType} from "@/features/editor/utils";
 
 
 const buildEditor = ({
-                         canvas,
-                     }:BuildEditorProps) : Editor=> {
-
+      canvas,
+      fillColor,
+      strokeColor,
+      strokeWidth,
+      strokeDashArray,
+      setFillColor,
+      setStrokeColor,
+      setStrokeWidth,
+      setStrokeDashArray,
+      selectedObjects
+}:BuildEditorProps) : Editor=> {
     const getWorkspace = ()=>{
         return canvas.
         getObjects().
@@ -38,9 +48,44 @@ const buildEditor = ({
     })
 
     return {
+
+        // 透明度
+        changeOpacity:(opacity:number)=>{
+            canvas.getActiveObjects().forEach(obj=>{
+                obj.set({   opacity:opacity   })
+            })
+            canvas.renderAll()
+        },
+
+
+
+        // 层级操作
+        bringForward: () => {
+            canvas.getActiveObjects().forEach(obj => {
+                canvas.bringForward(obj);
+            });
+            canvas.renderAll();
+            const  workspace = getWorkspace()
+            workspace?.sendBackwards()
+        },
+
+        sendBackward: () => {
+            canvas.getActiveObjects().forEach(obj => {
+                canvas.sendBackwards(obj);
+            });
+            canvas.renderAll();
+            const  workspace = getWorkspace()
+            workspace?.sendBackwards()
+        },
+
+
+        // 创建对象
         addCircle:()=>{
             const obj = new fabric.Circle({
-                ...CIRCLE_OPTIONS
+                ...CIRCLE_OPTIONS,
+                fill:fillColor,
+                stroke:strokeColor,
+                strokeWidth:strokeWidth,
             })
             addToCanvas(obj)
         },
@@ -48,6 +93,9 @@ const buildEditor = ({
         addSoftRectangle:()=>{
             const obj = new fabric.Rect({
                 ...RECTANGLE_OPTIONS,
+                fill:fillColor,
+                stroke:strokeColor,
+                strokeWidth:strokeWidth,
                 rx:50,
                 ry:50,
             })
@@ -57,6 +105,9 @@ const buildEditor = ({
         addRectangle:()=>{
             const obj = new fabric.Rect({
                 ...RECTANGLE_OPTIONS,
+                fill:fillColor,
+                stroke:strokeColor,
+                strokeWidth:strokeWidth,
             })
             addToCanvas(obj)
         },
@@ -64,6 +115,9 @@ const buildEditor = ({
         addTriangle:()=>{
             const obj = new fabric.Triangle({
                 ...TRIANFLE_OPTIONS,
+                fill:fillColor,
+                stroke:strokeColor,
+                strokeWidth:strokeWidth,
             })
             addToCanvas(obj)
         },
@@ -71,10 +125,14 @@ const buildEditor = ({
         addInverseTriangle:()=>{
             const obj = new fabric.Triangle({
                 ...TRIANFLE_OPTIONS,
+                fill:fillColor,
+                stroke:strokeColor,
+                strokeWidth:strokeWidth,
                 angle:180
             })
             addToCanvas(obj)
         },
+
         addDiamond:()=>{
             const HEIGHT = DIAMIOND_OPTIONS.height;
             const WIDTH = DIAMIOND_OPTIONS.width;
@@ -86,30 +144,146 @@ const buildEditor = ({
                     {x: 0, y: HEIGHT/2},
                 ], {
                     ...DIAMIOND_OPTIONS,
+                    fill:fillColor,
+                    stroke:strokeColor,
+                    strokeWidth:strokeWidth,
                 })
             addToCanvas(obj)
         },
 
 
+        // 修改属性
+        changeFillColor:(color: string)=>{
+            setFillColor(color)
+            canvas.getActiveObjects().forEach(obj=>{  // 批量修改选中对象属性
+                obj.set({   fill:color   })
+            })
+            canvas.renderAll()
+        },
 
+        changeStrokeColor:(color: string)=>{
+            setStrokeColor(color)
+            canvas.getActiveObjects().forEach(obj=>{
+                if (isTextType(typeof obj.type === "string" ? obj.type : "")){
+                    obj.set({   fill:color  })
+                    return;
+                }
+                obj.set({stroke:color})
+            })
+            canvas.renderAll()
+        },
+
+        changeStrokeWidth:(width: number)=>{
+            setStrokeWidth(width)
+            canvas.getActiveObjects().forEach(obj=>{  // 批量修改选中对象属性
+                obj.set({   strokeWidth:width   })
+            })
+            canvas.renderAll()
+        },
+
+        changeStrokeDashArray:(type: number[])=>{
+            setStrokeDashArray(type)
+            canvas.getActiveObjects().forEach(obj=>{
+                obj.set({   strokeDashArray:type   })
+            })
+            canvas.renderAll()
+        },
+
+
+        // 获取属性
+        canvas,
+        fillColor,
+        strokeColor,
+        strokeWidth,
+        selectedObjects,
+
+        // 获取当前选中对象属性
+        getActiveFillColor: ()=>{
+            const activeObject = selectedObjects[0]
+            if (!activeObject){
+                return fillColor
+            }
+            const value = activeObject.get("fill") || fillColor
+            return value as string
+        },
+
+        getActiveStrokeColor: ()=>{
+            const activeObject = selectedObjects[0]
+            if (!activeObject){
+                return strokeColor
+            }
+            const value = activeObject.get("stroke") || strokeColor
+            return value as string
+        },
+
+        getActiveStrokeWidth: ()=>{
+            const activeObject = selectedObjects[0]
+            if (!activeObject){
+                return strokeWidth
+            }
+            const value = activeObject.get("strokeWidth") || strokeWidth
+            return value as number
+        },
+
+        getStrokeDashArray: ()=>{
+            const slectedObject = selectedObjects[0]
+            if (!slectedObject){
+                return strokeDashArray
+            }
+            const value = slectedObject.get("strokeDashArray") || strokeDashArray
+            return value as number[]
+        },
+
+        getActionOpacity:()=>{
+            const slectedObject = selectedObjects[0]
+            if (!slectedObject){
+                return 1
+            }
+            const value = slectedObject.get("opacity") || 1
+            return value as number
+        },
 
     }
 }
 
 
-export const useEditor = () => {
+export const useEditor = ({
+    clearSelectionCallback
+}:EditorHookProps) => {
 
     const [ canvas,setCanvas ] = useState<fabric.Canvas | null>(null)
     const [ container,setContainer ] = useState<HTMLDivElement | null>(null)
+    const [ selectedObjects , setSelectedObjects ] = useState<fabric.Object[]>([])
 
-    useAuteResize({canvas,container})
+    const [fillColor,setFillColor] = useState(FILL_COLOR)
+    const [strokeColor,setStrokeColor] = useState(STROKE_COLOR)
+    const [strokeWidth,setStrokeWidth] = useState(STROKE_width)
+    const [strokeDashArray,setStrokeDashArray] = useState<number[]>(STROKE_DASH_ARRAP)
+
+
+    useAuteResize({canvas,container  })
+
+    useCanvasEvents({
+        canvas,
+        setSelectedObjects,
+        clearSelectionCallback
+    })
 
     const editor = useMemo(()=>{
         if (canvas) return buildEditor({
             canvas,
+            fillColor,
+            strokeColor,
+            strokeWidth,
+            strokeDashArray,
+            setFillColor,
+            setStrokeColor,
+            setStrokeWidth,
+            setStrokeDashArray,
+            selectedObjects
         })
         return undefined
-    },[canvas])
+    },[canvas, fillColor, strokeColor, strokeWidth, strokeDashArray, selectedObjects])
 
     const init = useCallback(
         ({
